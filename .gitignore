@@ -1,0 +1,4 @@
+python310/
+chatbot_ui/node_modules/
+__pycache__/
+*.log

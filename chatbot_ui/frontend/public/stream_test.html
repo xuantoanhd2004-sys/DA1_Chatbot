@@ -1,0 +1,76 @@
+﻿<!DOCTYPE html>
+<html><head><title>Stream Test</title></head>
+<body>
+<h2>Stream Test Page</h2>
+<button id="btn" onclick="testStream()">Send Test Message</button>
+<pre id="log" style="background:#111;color:#0f0;padding:10px;height:400px;overflow:auto;"></pre>
+<script>
+function log(msg) { document.getElementById('log').textContent += msg + '\n'; }
+
+async function testStream() {
+  document.getElementById('btn').disabled = true;
+  log('=== Starting stream test ===');
+  
+  // First get a chat ID
+  try {
+    const createRes = await fetch('http://localhost:5000/chat', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({title:'StreamTest',username:'admin'})
+    });
+    const chat = await createRes.json();
+    log('Created chat: ' + chat.id);
+    
+    // Now send stream request
+    log('Sending stream request...');
+    const response = await fetch('http://localhost:5000/chat/' + chat.id + '/stream', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({from:'user', text:'hello, xin chao'})
+    });
+    
+    log('Response status: ' + response.status);
+    log('Content-Type: ' + response.headers.get('Content-Type'));
+    
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder('utf-8');
+    let sseBuffer = '';
+    let chunkCount = 0;
+    let fullText = '';
+    
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) { log('Stream done.'); break; }
+      
+      chunkCount++;
+      const raw = decoder.decode(value, { stream: true });
+      log('[Chunk ' + chunkCount + '] raw bytes: ' + value.length + ' | text: ' + JSON.stringify(raw));
+      
+      sseBuffer += raw;
+      let boundaryIndex;
+      while ((boundaryIndex = sseBuffer.indexOf('\\n\\n')) !== -1) {
+        const eventString = sseBuffer.slice(0, boundaryIndex).trim();
+        sseBuffer = sseBuffer.slice(boundaryIndex + 2);
+        if (!eventString) continue;
+        const lines = eventString.split('\\n');
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const dataStr = line.replace('data: ', '').trim();
+            if (dataStr === '[DONE]') { log('Got [DONE]'); break; }
+            try {
+              const parsed = JSON.parse(dataStr);
+              if (parsed.chunk) { fullText += parsed.chunk; log('  parsed chunk: ' + JSON.stringify(parsed.chunk)); }
+            } catch(e) { log('  JSON parse error: ' + e.message); }
+          }
+        }
+      }
+    }
+    log('=== FULL BOT TEXT: ' + fullText);
+  } catch(err) {
+    log('ERROR: ' + err.message);
+    console.error(err);
+  }
+  document.getElementById('btn').disabled = false;
+}
+</script>
+</body></html>

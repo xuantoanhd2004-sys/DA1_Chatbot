@@ -1,0 +1,17 @@
+[
+  {
+    "id": 1,
+    "title": "Cuộc trò chuyện 1",
+    "messages": [
+      { "from": "bot", "text": "Xin chào!" },
+      { "from": "user", "text": "Chào bạn" }
+    ]
+  },
+  {
+    "id": 2,
+    "title": "Cuộc trò chuyện 2",
+    "messages": [
+      { "from": "bot", "text": "Bạn cần giúp gì?" }
+    ]
+  }
+]
